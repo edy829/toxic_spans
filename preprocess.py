@@ -2,8 +2,11 @@ import argparse
 import re
 from ast import literal_eval
 
+import numpy as np
 import pandas as pd
+import torch
 from sklearn.model_selection import train_test_split
+from transformers import DistilBertForTokenClassification, DistilBertTokenizerFast
 
 
 def preprocess_data(file_path):
@@ -43,6 +46,58 @@ def preprocess_data(file_path):
         tags.append(sen_tags)
 
     train_texts, val_texts, train_tags, val_tags = train_test_split(texts, tags, test_size=.2)
+
+    # Create encodings for tags
+    unique_tags = set(tag for doc in tags for tag in doc)
+    tag2id = {tag: id for id, tag in enumerate(unique_tags)}
+    id2tag = {id: tag for tag, id in tag2id.items()}
+
+    # Create encodings for tokens
+    tokenizer = DistilBertTokenizerFast.from_pretrained('distilbert-base-cased')
+    train_encodings = tokenizer(train_texts, is_split_into_words=True, return_offsets_mapping=True, padding=True,
+                                truncation=True)
+    val_encodings = tokenizer(val_texts, is_split_into_words=True, return_offsets_mapping=True, padding=True,
+                              truncation=True)
+
+    def encode_tags(tags, encodings):
+        labels = [[tag2id[tag] for tag in doc] for doc in tags]
+        encoded_labels = []
+        for doc_labels, doc_offset in zip(labels, encodings.offset_mapping):
+            # Create an empty array of -100
+            doc_enc_labels = np.ones(len(doc_offset), dtype=int) * -100
+            arr_offset = np.array(doc_offset)
+
+            # Set labels whose first offset position is 0 and the second is not 0
+            doc_enc_labels[(arr_offset[:, 0] == 0) & (arr_offset[:, 1] != 0)] = doc_labels
+            encoded_labels.append(doc_enc_labels.tolist())
+
+        return encoded_labels
+
+    train_labels = encode_tags(train_tags, train_encodings)
+    val_labels = encode_tags(val_tags, val_encodings)
+
+    class WNUTDataset(torch.utils.data.Dataset):
+        def __init__(self, encodings, labels):
+            self.encodings = encodings
+            self.labels = labels
+
+        def __getitem__(self, idx):
+            item = {key: torch.tensor(val[idx]) for key, val in self.encodings.items()}
+            item['labels'] = torch.tensor(self.labels[idx])
+            return item
+
+        def __len__(self):
+            return len(self.labels)
+
+    train_encodings.pop("offset_mapping")  # We don't want to pass this to the model
+    val_encodings.pop("offset_mapping")
+    train_dataset = WNUTDataset(train_encodings, train_labels)
+    val_dataset = WNUTDataset(val_encodings, val_labels)
+
+    model = DistilBertForTokenClassification.from_pretrained(
+        'models/distilbert-base-cased',
+        num_labels=len(unique_tags)
+    )
 
 
 if __name__ == '__main__':
