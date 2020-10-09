@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import torch
 from sklearn.model_selection import train_test_split
-from transformers import DistilBertForTokenClassification, DistilBertTokenizerFast
+from transformers import DistilBertForTokenClassification, DistilBertTokenizerFast, Trainer, TrainingArguments
 
 
 def preprocess_data(file_path):
@@ -94,10 +94,30 @@ def preprocess_data(file_path):
     train_dataset = WNUTDataset(train_encodings, train_labels)
     val_dataset = WNUTDataset(val_encodings, val_labels)
 
+    training_args = TrainingArguments(
+        output_dir='./results',  # Output directory
+        num_train_epochs=3,  # Total number of training epochs
+        per_device_train_batch_size=16,  # Batch size per device during training
+        per_device_eval_batch_size=64,  # Batch size for evaluation
+        warmup_steps=500,  # Number of warmup steps for learning rate scheduler
+        weight_decay=0.01,  # Strength of weight decay
+        logging_dir='./logs',  # Directory for storing logs
+        logging_steps=10,
+    )
+
     model = DistilBertForTokenClassification.from_pretrained(
         'models/distilbert-base-cased',
         num_labels=len(unique_tags)
     )
+
+    trainer = Trainer(
+        model=model,  # The instantiated Transformers model to be trained
+        args=training_args,  # Training arguments, defined above
+        train_dataset=train_dataset,  # Training dataset
+        eval_dataset=val_dataset  # Evaluation dataset
+    )
+
+    trainer.train()
 
 
 if __name__ == '__main__':
