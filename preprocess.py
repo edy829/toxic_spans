@@ -24,15 +24,23 @@ def preprocess_data(file_path):
                 spans.extend([row['spans'][i - 1], row['spans'][i]])
 
         # Identify all toxic words in row
-        toxic_words = []
+        toxic = []
         for i in range(0, len(spans), 2):
-            toxic_words.append(row['text'][spans[i]:spans[i + 1] + 1])
+            toxic.append(row['text'][spans[i]:spans[i + 1] + 1])
 
-        # Split row into words and store each word with its corresponding tag
+        sen = []
+        sen_tags = []
+
+        # Split row into words and store each word and its corresponding tag
         for word in re.findall(r"[\w']+|[.,!?;]", row['text']):
-            texts.append(word)
-            # TODO: B- I- in tags
-            tags.append('B-toxic') if word in toxic_words else tags.append('O')
+            sen.append(word)
+            if word in toxic:
+                sen_tags.append('B-toxic') if sen_tags and sen_tags[-1] == 'O' else sen_tags.append('I-toxic')
+            else:
+                sen_tags.append('O')
+
+        texts.append(sen)
+        tags.append(sen_tags)
 
     train_texts, val_texts, train_tags, val_tags = train_test_split(texts, tags, test_size=.2)
 

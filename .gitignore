@@ -2,4 +2,6 @@ models/
 venv/
 .idea/
 
+data/wnut17train.conll
 main.py
+test.py
