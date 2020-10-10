@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 from transformers import DistilBertForTokenClassification, DistilBertTokenizerFast, Trainer, TrainingArguments
 
 
-def preprocess_data(file_path):
+def finetune(file_path):
     # TODO: What if toxic word also appears in a non-toxic context?
     df = pd.read_csv(file_path)
     df['spans'] = df.spans.apply(literal_eval)
@@ -101,8 +101,7 @@ def preprocess_data(file_path):
         per_device_eval_batch_size=64,  # Batch size for evaluation
         warmup_steps=500,  # Number of warmup steps for learning rate scheduler
         weight_decay=0.01,  # Strength of weight decay
-        logging_dir='./logs',  # Directory for storing logs
-        logging_steps=10,
+        logging_dir='./logs'  # Directory for storing logs
     )
 
     model = DistilBertForTokenClassification.from_pretrained(
@@ -118,9 +117,10 @@ def preprocess_data(file_path):
     )
 
     trainer.train()
+    trainer.evaluate()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('file_path')
-    preprocess_data(parser.parse_args().file_path)
+    finetune(parser.parse_args().file_path)

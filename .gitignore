@@ -1,5 +1,6 @@
+logs/
 models/
+results/
 venv/
-.idea/
 
-main.py
+.idea/
