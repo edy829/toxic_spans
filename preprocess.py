@@ -15,15 +15,20 @@ def preprocess(file_path):
 
     for _, row in df.iterrows():
         spans = row['spans']
-        text = re.findall(r"\w+(?:'\w+)*|[\s+]|[^\w]", row['text'])
+        text = re.findall(r"\w+(?:'\w+)*|[^\w]", row['text'].replace('\n', ' '))
 
         sentence = []
         sentence_tags = []
 
         offset = 0
         for word in text:
+            length = len(word)
+            if word.isspace():
+                offset += length
+                continue
+
             toxic = False
-            for i in range(len(word)):
+            for i in range(length):
                 if i + offset in spans:
                     toxic = True
 
@@ -39,18 +44,16 @@ def preprocess(file_path):
             else:
                 sentence_tags.append('O')
 
-            offset += len(word)
+            offset += length
 
         texts.append(sentence)
         tags.append(sentence_tags)
 
-        # TODO: Remove spaces?
-
-    with open(f'{os.path.splitext(file_path)[0]}_preprocessed', 'w') as f:
+    with open(f'{os.path.splitext(file_path)[0]}_preprocessed', 'w') as file:
         for sentence, sentence_tags in zip(texts, tags):
             for text, tag in zip(sentence, sentence_tags):
-                f.write(f'{text}\t{tag}\n')
-            f.write('\n')
+                file.write(f'{text}\t{tag}\n')
+            file.write('\n')
 
 
 if __name__ == '__main__':
