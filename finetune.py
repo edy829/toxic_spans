@@ -1,50 +1,34 @@
 import argparse
 import re
-from ast import literal_eval
+from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import torch
 from sklearn.model_selection import train_test_split
 from transformers import DistilBertForTokenClassification, DistilBertTokenizerFast, Trainer, TrainingArguments
 
 
 def finetune(file_path):
-    # TODO: What if toxic word also appears in a non-toxic context?
-    df = pd.read_csv(file_path)
-    df['spans'] = df.spans.apply(literal_eval)
+    def read_wnut(file_path):
+        file_path = Path(file_path)
 
-    texts = []
-    tags = []
+        raw_text = file_path.read_text().strip()
+        raw_docs = re.split(r'\n\t?\n', raw_text)
+        token_docs = []
+        tag_docs = []
+        for doc in raw_docs:
+            tokens = []
+            tags = []
+            for line in doc.split('\n'):
+                token, tag = line.split('\t')
+                tokens.append(token)
+                tags.append(tag)
+            token_docs.append(tokens)
+            tag_docs.append(tags)
 
-    for _, row in df.iterrows():
-        # Remove intermediary span indices, e.g., [15, 16, 17, 18, 19, 27, 28, 29, 30, 31] -> [15, 19, 27, 31]
-        spans = []
-        for i in range(len(row['spans'])):
-            if i == 0 or i == len(row['spans']) - 1:
-                spans.append(row['spans'][i])
-            elif row['spans'][i] - row['spans'][i - 1] > 1:
-                spans.extend([row['spans'][i - 1], row['spans'][i]])
+        return token_docs, tag_docs
 
-        # Identify all toxic words in row
-        toxic = []
-        for i in range(0, len(spans), 2):
-            toxic.append(row['text'][spans[i]:spans[i + 1] + 1])
-
-        sen = []
-        sen_tags = []
-
-        # Split row into words and store each word and its corresponding tag
-        for word in re.findall(r"[\w']+|[.,!?;]", row['text']):
-            sen.append(word)
-            if word in toxic:
-                sen_tags.append('B-toxic') if sen_tags and sen_tags[-1] == 'O' else sen_tags.append('I-toxic')
-            else:
-                sen_tags.append('O')
-
-        texts.append(sen)
-        tags.append(sen_tags)
-
+    texts, tags = read_wnut(file_path)
     train_texts, val_texts, train_tags, val_tags = train_test_split(texts, tags, test_size=.2)
 
     # Create encodings for tags
