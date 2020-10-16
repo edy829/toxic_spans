@@ -6,7 +6,6 @@ import numpy as np
 import torch
 from seqeval.metrics import accuracy_score, f1_score, precision_score, recall_score
 from sklearn.model_selection import train_test_split
-from torch import nn
 from transformers import DistilBertForTokenClassification, DistilBertTokenizerFast, Trainer, TrainingArguments
 
 
@@ -75,14 +74,14 @@ def finetune(file_path):
         def __len__(self):
             return len(self.labels)
 
-    train_encodings.pop("offset_mapping")  # We don't want to pass this to the model
-    val_encodings.pop("offset_mapping")
+    train_encodings.pop('offset_mapping')  # We don't want to pass this to the model
+    val_encodings.pop('offset_mapping')
     train_dataset = WNUTDataset(train_encodings, train_labels)
     val_dataset = WNUTDataset(val_encodings, val_labels)
 
     training_args = TrainingArguments(
         output_dir='./results',  # Output directory
-        num_train_epochs=1,  # Total number of training epochs
+        num_train_epochs=3,  # Total number of training epochs
         per_device_train_batch_size=16,  # Batch size per device during training
         per_device_eval_batch_size=64,  # Batch size for evaluation
         warmup_steps=500,  # Number of warmup steps for learning rate scheduler
@@ -105,7 +104,7 @@ def finetune(file_path):
 
         for i in range(batch_size):
             for j in range(seq_len):
-                if label_ids[i, j] != nn.CrossEntropyLoss().ignore_index:
+                if label_ids[i, j] != torch.nn.CrossEntropyLoss().ignore_index:
                     out_label_list[i].append(id2tag[label_ids[i][j]])
                     preds_list[i].append(id2tag[preds[i][j]])
 
@@ -114,10 +113,10 @@ def finetune(file_path):
     def compute_metrics(p):
         preds_list, out_label_list = align_predictions(p.predictions, p.label_ids)
         return {
-            "accuracy_score": accuracy_score(out_label_list, preds_list),
-            "precision": precision_score(out_label_list, preds_list),
-            "recall": recall_score(out_label_list, preds_list),
-            "f1": f1_score(out_label_list, preds_list),
+            'accuracy_score': accuracy_score(out_label_list, preds_list),
+            'precision': precision_score(out_label_list, preds_list),
+            'recall': recall_score(out_label_list, preds_list),
+            'f1': f1_score(out_label_list, preds_list),
         }
 
     trainer = Trainer(
