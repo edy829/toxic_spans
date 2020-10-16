@@ -4,7 +4,9 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from seqeval.metrics import accuracy_score, f1_score, precision_score, recall_score
 from sklearn.model_selection import train_test_split
+from torch import nn
 from transformers import DistilBertForTokenClassification, DistilBertTokenizerFast, Trainer, TrainingArguments
 
 
@@ -80,7 +82,7 @@ def finetune(file_path):
 
     training_args = TrainingArguments(
         output_dir='./results',  # Output directory
-        num_train_epochs=3,  # Total number of training epochs
+        num_train_epochs=1,  # Total number of training epochs
         per_device_train_batch_size=16,  # Batch size per device during training
         per_device_eval_batch_size=64,  # Batch size for evaluation
         warmup_steps=500,  # Number of warmup steps for learning rate scheduler
@@ -93,9 +95,35 @@ def finetune(file_path):
         num_labels=len(unique_tags)
     )
 
+    def align_predictions(predictions, label_ids):
+        preds = np.argmax(predictions, axis=2)
+
+        batch_size, seq_len = preds.shape
+
+        out_label_list = [[] for _ in range(batch_size)]
+        preds_list = [[] for _ in range(batch_size)]
+
+        for i in range(batch_size):
+            for j in range(seq_len):
+                if label_ids[i, j] != nn.CrossEntropyLoss().ignore_index:
+                    out_label_list[i].append(id2tag[label_ids[i][j]])
+                    preds_list[i].append(id2tag[preds[i][j]])
+
+        return preds_list, out_label_list
+
+    def compute_metrics(p):
+        preds_list, out_label_list = align_predictions(p.predictions, p.label_ids)
+        return {
+            "accuracy_score": accuracy_score(out_label_list, preds_list),
+            "precision": precision_score(out_label_list, preds_list),
+            "recall": recall_score(out_label_list, preds_list),
+            "f1": f1_score(out_label_list, preds_list),
+        }
+
     trainer = Trainer(
         model=model,  # The instantiated Transformers model to be trained
         args=training_args,  # Training arguments, defined above
+        compute_metrics=compute_metrics,
         train_dataset=train_dataset,  # Training dataset
         eval_dataset=val_dataset  # Evaluation dataset
     )
