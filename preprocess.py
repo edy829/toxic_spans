@@ -27,12 +27,13 @@ def preprocess(file_path):
                 offset += length
                 continue
 
+            sentence.append(word)
+
             toxic = False
             for i in range(length):
                 if i + offset in spans:
                     toxic = True
 
-            sentence.append(word)
             if toxic:
                 try:
                     if sentence_tags[-1] == 'O':
@@ -49,11 +50,14 @@ def preprocess(file_path):
         texts.append(sentence)
         tags.append(sentence_tags)
 
-    with open(f'{os.path.splitext(file_path)[0]}_preprocessed.txt', 'w') as file:
+    with open(
+            f'{os.path.dirname(file_path)}/preprocessed/{os.path.splitext(os.path.basename(file_path))[0]}.txt',
+            'w'
+    ) as writer:
         for sentence, sentence_tags in zip(texts, tags):
             for text, tag in zip(sentence, sentence_tags):
-                file.write(f'{text}\t{tag}\n')
-            file.write('\n')
+                writer.write(f'{text}\t{tag}\n')
+            writer.write('\n')
 
 
 if __name__ == '__main__':

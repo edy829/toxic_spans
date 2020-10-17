@@ -32,12 +32,10 @@ def finetune(train_path, val_path, test_path):
     val_texts, val_tags = read_wnut(val_path)
     test_texts, test_tags = read_wnut(test_path)
 
-    # Create encodings for tags
     unique_tags = set(tag for doc in train_tags for tag in doc)
     tag2id = {tag: id for id, tag in enumerate(unique_tags)}
     id2tag = {id: tag for tag, id in tag2id.items()}
 
-    # Create encodings for tokens
     tokenizer = DistilBertTokenizerFast.from_pretrained('distilbert-base-cased')
     train_encodings = tokenizer(train_texts, is_split_into_words=True, return_offsets_mapping=True, padding=True,
                                 truncation=True)
