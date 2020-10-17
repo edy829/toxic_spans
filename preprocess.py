@@ -49,7 +49,7 @@ def preprocess(file_path):
         texts.append(sentence)
         tags.append(sentence_tags)
 
-    with open(f'{os.path.splitext(file_path)[0]}_preprocessed', 'w') as file:
+    with open(f'{os.path.splitext(file_path)[0]}_preprocessed.txt', 'w') as file:
         for sentence, sentence_tags in zip(texts, tags):
             for text, tag in zip(sentence, sentence_tags):
                 file.write(f'{text}\t{tag}\n')

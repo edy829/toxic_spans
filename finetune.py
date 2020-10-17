@@ -5,11 +5,10 @@ from pathlib import Path
 import numpy as np
 import torch
 from seqeval.metrics import accuracy_score, f1_score, precision_score, recall_score
-from sklearn.model_selection import train_test_split
 from transformers import DistilBertForTokenClassification, DistilBertTokenizerFast, Trainer, TrainingArguments
 
 
-def finetune(file_path):
+def finetune(train_path, val_path, test_path):
     def read_wnut(file_path):
         file_path = Path(file_path)
 
@@ -29,11 +28,12 @@ def finetune(file_path):
 
         return token_docs, tag_docs
 
-    texts, tags = read_wnut(file_path)
-    train_texts, val_texts, train_tags, val_tags = train_test_split(texts, tags, test_size=.2)
+    train_texts, train_tags = read_wnut(train_path)
+    val_texts, val_tags = read_wnut(val_path)
+    test_texts, test_tags = read_wnut(test_path)
 
     # Create encodings for tags
-    unique_tags = set(tag for doc in tags for tag in doc)
+    unique_tags = set(tag for doc in train_tags for tag in doc)
     tag2id = {tag: id for id, tag in enumerate(unique_tags)}
     id2tag = {id: tag for tag, id in tag2id.items()}
 
@@ -43,6 +43,8 @@ def finetune(file_path):
                                 truncation=True)
     val_encodings = tokenizer(val_texts, is_split_into_words=True, return_offsets_mapping=True, padding=True,
                               truncation=True)
+    test_encodings = tokenizer(test_texts, is_split_into_words=True, return_offsets_mapping=True, padding=True,
+                               truncation=True)
 
     def encode_tags(tags, encodings):
         labels = [[tag2id[tag] for tag in doc] for doc in tags]
@@ -60,6 +62,7 @@ def finetune(file_path):
 
     train_labels = encode_tags(train_tags, train_encodings)
     val_labels = encode_tags(val_tags, val_encodings)
+    test_labels = encode_tags(test_tags, test_encodings)
 
     class WNUTDataset(torch.utils.data.Dataset):
         def __init__(self, encodings, labels):
@@ -76,8 +79,11 @@ def finetune(file_path):
 
     train_encodings.pop('offset_mapping')  # We don't want to pass this to the model
     val_encodings.pop('offset_mapping')
+    test_encodings.pop('offset_mapping')
+
     train_dataset = WNUTDataset(train_encodings, train_labels)
     val_dataset = WNUTDataset(val_encodings, val_labels)
+    test_dataset = WNUTDataset(test_encodings, test_labels)
 
     training_args = TrainingArguments(
         output_dir='./results',  # Output directory
@@ -130,8 +136,34 @@ def finetune(file_path):
     trainer.train()
     trainer.evaluate()
 
+    # Predict
+    predictions, label_ids, metrics = trainer.predict(test_dataset)
+    preds_list, _ = align_predictions(predictions, label_ids)
+
+    with open('results/test_results.txt', 'w') as writer:
+        for key, value in metrics.items():
+            writer.write(f'{key} = {value}\n')
+
+    with open('results/test_predictions.txt', 'w') as writer:
+        with open(test_path, 'r') as f:
+            example_id = 0
+            for line in f:
+                if line.startswith('-DOCSTART') or line == '' or line == '\n':
+                    writer.write(line)
+                    if not preds_list[example_id]:
+                        example_id += 1
+                elif preds_list[example_id]:
+                    writer.write(line.split()[0] + ' ' + preds_list[example_id].pop(0) + '\n')
+                else:
+                    print(f'Maximum sequence length exceeded: No prediction for {line.split()[0]}')
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('file_path')
-    finetune(parser.parse_args().file_path)
+    parser.add_argument('train_path')
+    parser.add_argument('val_path')
+    parser.add_argument('test_path')
+
+    args = parser.parse_args()
+
+    finetune(args.train_path, args.val_path, args.test_path)
