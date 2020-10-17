@@ -147,13 +147,15 @@ def finetune(train_path, val_path, test_path):
     with open('results/test_predictions.txt', 'w') as writer:
         with open(test_path, 'r') as f:
             example_id = 0
+            newline = ''
             for line in f:
                 if line.startswith('-DOCSTART') or line == '' or line == '\n':
                     writer.write(line)
                     if not preds_list[example_id]:
                         example_id += 1
                 elif preds_list[example_id]:
-                    writer.write(line.split()[0] + ' ' + preds_list[example_id].pop(0) + '\n')
+                    writer.write(f'{newline}{line.split()[0]}\t{preds_list[example_id].pop(0)}')
+                    newline = '\n'
                 else:
                     print(f'Maximum sequence length exceeded: No prediction for {line.split()[0]}')
 
