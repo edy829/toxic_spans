@@ -31392,7 +31392,6 @@ USA	O
 .	O
 Apparently	O
 ,	O
-​	O
 you	O
 are	O
 a	O
@@ -38120,7 +38119,6 @@ solid	O
 years	O
 ?	O
 Hypocritically	O
-​	O
 ridiculous	B-toxic
 .	O
 
@@ -58705,7 +58703,6 @@ fill	O
 in	O
 gaps	O
 .	O
-	O
 Chelsea	O
 is	O
 going	O
@@ -66422,7 +66419,6 @@ whine	O
 come	O
 next	O
 downturn	O
-​	O
 that	O
 they	O
 cannot	O

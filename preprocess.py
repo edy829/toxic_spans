@@ -23,7 +23,7 @@ def preprocess(file_path):
         offset = 0
         for word in text:
             length = len(word)
-            if word.isspace():
+            if word.isspace() or word == '\u200b' or word == chr(127):  # empty words, ZWSP, DEL
                 offset += length
                 continue
 
